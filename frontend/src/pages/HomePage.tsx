@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type RoundOut, type Player } from "../api";
+import { api, fmtHdcp, type RoundOut, type Player } from "../api";
 
 interface Props { player: Player }
 
@@ -37,7 +37,7 @@ export default function HomePage({ player }: Props) {
           <div style={s.name}>{player.name}</div>
           {player.nickname && <div style={s.nickname}>"{player.nickname}"</div>}
         </div>
-        <Link to={`/players/${player.id}`} style={s.hdcp}>HCP {player.handicap}</Link>
+        <Link to={`/players/${player.id}`} style={s.hdcp}>HCP {fmtHdcp(player.handicap)}</Link>
       </div>
 
       {/* Active rounds */}
@@ -99,7 +99,7 @@ export default function HomePage({ player }: Props) {
                 </div>
                 <div style={s.playerCardName}>{p.name}</div>
                 {p.nickname && <div style={s.playerCardNick}>"{p.nickname}"</div>}
-                <div style={s.playerCardHdcp}>HCP {p.handicap}</div>
+                <div style={s.playerCardHdcp}>HCP {fmtHdcp(p.handicap)}</div>
                 {p.team && (
                   <div style={{ fontSize: "0.65rem", fontWeight: 700, color: p.team === "A" ? "#1b6b3a" : "#7c3aed", marginTop: "0.15rem" }}>
                     Team {p.team}

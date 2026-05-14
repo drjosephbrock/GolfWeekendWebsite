@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type Player } from "../api";
+import { api, fmtHdcp, type Player } from "../api";
 
 const STORAGE_KEY = "golf_player";
 
@@ -37,7 +37,7 @@ export default function PlayerPicker({ onSelect }: Props) {
           {players.map((p) => (
             <button key={p.id} style={styles.btn} onClick={() => pick(p)}>
               <span style={styles.btnName}>{p.name}</span>
-              <span style={styles.btnHdcp}>HCP {p.handicap}</span>
+              <span style={styles.btnHdcp}>HCP {fmtHdcp(p.handicap)}</span>
             </button>
           ))}
         </div>

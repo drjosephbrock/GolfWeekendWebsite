@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { api, type Player, type CourseOut, type LedgerEntryOut, type RoundOut, type RoundCreate, type BetOut } from "../api";
+import { api, fmtHdcp, parseHdcp, type Player, type CourseOut, type LedgerEntryOut, type RoundOut, type RoundCreate, type BetOut } from "../api";
 
 const SESSION_KEY = "golf_admin_pw";
 
@@ -128,7 +128,7 @@ function PlayersTab({ pw }: { pw: string }) {
 
   function startEdit(p: Player) {
     setEditing(p.id);
-    setEditState({ name: p.name, handicap: String(p.handicap), nickname: p.nickname ?? "", hometown: p.hometown ?? "", fun_fact: p.fun_fact ?? "" });
+    setEditState({ name: p.name, handicap: fmtHdcp(p.handicap), nickname: p.nickname ?? "", hometown: p.hometown ?? "", fun_fact: p.fun_fact ?? "" });
   }
 
   function setField(key: keyof EditState, val: string) {
@@ -139,7 +139,7 @@ function PlayersTab({ pw }: { pw: string }) {
     setSaving(true);
     await api.admin.updatePlayer(id, {
       name: editState.name,
-      handicap: parseFloat(editState.handicap),
+      handicap: parseHdcp(editState.handicap),
       nickname: editState.nickname || undefined,
       hometown: editState.hometown || undefined,
       fun_fact: editState.fun_fact || undefined,
@@ -155,9 +155,9 @@ function PlayersTab({ pw }: { pw: string }) {
   }
 
   async function addPlayer() {
-    if (!newName.trim() || isNaN(parseFloat(newHdcp))) return;
+    if (!newName.trim() || isNaN(parseHdcp(newHdcp))) return;
     setSaving(true);
-    await api.admin.createPlayer(newName.trim(), parseFloat(newHdcp), pw);
+    await api.admin.createPlayer(newName.trim(), parseHdcp(newHdcp), pw);
     setNewName(""); setNewHdcp(""); setShowAdd(false);
     await load();
     setSaving(false);
@@ -174,7 +174,7 @@ function PlayersTab({ pw }: { pw: string }) {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
               <div style={{ display: "flex", gap: "0.4rem" }}>
                 <input style={{ ...s.input, flex: 2 }} value={editState.name} onChange={(e) => setField("name", e.target.value)} placeholder="Name" />
-                <input style={{ ...s.input, flex: 1 }} type="number" value={editState.handicap} onChange={(e) => setField("handicap", e.target.value)} placeholder="HCP" />
+                <input style={{ ...s.input, flex: 1 }} type="text" inputMode="numeric" value={editState.handicap} onChange={(e) => setField("handicap", e.target.value)} placeholder="+1/0/12" />
               </div>
               <input style={s.input} value={editState.nickname} onChange={(e) => setField("nickname", e.target.value)} placeholder='Nickname (e.g. "The Machine")' />
               <input style={s.input} value={editState.hometown} onChange={(e) => setField("hometown", e.target.value)} placeholder="Hometown (e.g. Minneapolis, MN)" />
@@ -189,7 +189,7 @@ function PlayersTab({ pw }: { pw: string }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ fontWeight: 700 }}>{p.name}</span>
                 {p.nickname && <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontStyle: "italic", marginLeft: "0.4rem" }}>"{p.nickname}"</span>}
-                <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginLeft: "0.5rem" }}>HCP {p.handicap}</span>
+                <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginLeft: "0.5rem" }}>HCP {fmtHdcp(p.handicap)}</span>
                 {p.team && <span className="pill green" style={{ marginLeft: "0.4rem" }}>Team {p.team}</span>}
                 {p.hometown && <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>📍 {p.hometown}</div>}
               </div>
@@ -210,7 +210,7 @@ function PlayersTab({ pw }: { pw: string }) {
           <p className="section-title">Add Player</p>
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
             <input style={{ ...s.input, flex: 2 }} placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <input style={{ ...s.input, flex: 1 }} type="number" placeholder="HCP" value={newHdcp} onChange={(e) => setNewHdcp(e.target.value)} />
+            <input style={{ ...s.input, flex: 1 }} type="text" inputMode="numeric" placeholder="+1/0/12" value={newHdcp} onChange={(e) => setNewHdcp(e.target.value)} />
           </div>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button className="btn btn-primary" style={{ flex: 1 }} onClick={addPlayer} disabled={saving}>Add</button>
@@ -823,7 +823,7 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
                     onClick={() => togglePlayer(p.id)}
                   >
                     {p.name}
-                    <span style={{ fontWeight: 400, fontSize: "0.72rem", marginLeft: "0.4rem" }}>HCP {p.handicap}</span>
+                    <span style={{ fontWeight: 400, fontSize: "0.72rem", marginLeft: "0.4rem" }}>HCP {fmtHdcp(p.handicap)}</span>
                   </button>
                   {isSelected && needsTeams && (
                     <div style={{ display: "flex", gap: "0.25rem", flexShrink: 0 }}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, type Player, type RoundOut } from "../api";
+import { api, fmtHdcp, type Player, type RoundOut } from "../api";
 
 const TEAM_COLORS: Record<string, string> = { A: "#1b6b3a", B: "#7c3aed" };
 
@@ -97,7 +97,7 @@ export default function PlayerProfilePage({ currentPlayer }: Props) {
           <div style={s.playerName}>{player.name}</div>
           {player.nickname && <div style={s.nickname}>"{player.nickname}"</div>}
           <div style={s.pills}>
-            <span style={s.hdcpPill}>HCP {player.handicap}</span>
+            <span style={s.hdcpPill}>HCP {fmtHdcp(player.handicap)}</span>
             {player.team && (
               <span style={{ ...s.teamPill, background: teamColor, color: "#fff" }}>
                 Team {player.team}

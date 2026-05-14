@@ -1,3 +1,15 @@
+/** Format a numeric handicap for display: -1 → "+1", 0 → "0", 5 → "5" */
+export function fmtHdcp(h: number): string {
+  return h < 0 ? `+${Math.abs(h)}` : String(h);
+}
+
+/** Parse a handicap input string: "+1" or "-1" → -1, "5" → 5 */
+export function parseHdcp(s: string): number {
+  const trimmed = s.trim();
+  if (trimmed.startsWith("+")) return -parseFloat(trimmed.slice(1));
+  return parseFloat(trimmed);
+}
+
 export interface Player {
   id: number;
   name: string;

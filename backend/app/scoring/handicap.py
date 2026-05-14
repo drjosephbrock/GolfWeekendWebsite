@@ -4,12 +4,15 @@ from .models import HoleSetup
 
 
 def strokes_on_hole(handicap: int, hole: HoleSetup) -> int:
-    """Return extra strokes a player receives on this hole given their handicap.
+    """Return net strokes a player receives on this hole given their handicap.
 
-    Standard allocation: one stroke on each hole whose hdcp_index <= handicap.
-    For handicaps > 18, a second stroke is given where hdcp_index <= (handicap - 18).
-    Max supported handicap is 24 (as per house rules).
+    Positive handicap: one stroke on each hole whose hdcp_index <= handicap;
+      a second stroke where hdcp_index <= (handicap - 18) for handicaps > 18.
+    Plus handicap (negative value, e.g. +1 stored as -1): player gives one
+      stroke on each hole whose hdcp_index <= abs(handicap).
     """
+    if handicap < 0:
+        return -1 if hole.hdcp_index <= abs(handicap) else 0
     strokes = 0
     if hole.hdcp_index <= handicap:
         strokes += 1
