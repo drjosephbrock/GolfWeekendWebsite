@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import PlayerPicker, { loadStoredPlayer } from "./components/PlayerPicker";
 import Nav from "./components/Nav";
 import HomePage from "./pages/HomePage";
@@ -16,6 +16,7 @@ import type { Player } from "./api";
 export default function App() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [checking, setChecking] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     setPlayer(loadStoredPlayer());
@@ -24,7 +25,10 @@ export default function App() {
 
   if (checking) return null;
 
-  if (!player) return <PlayerPicker onSelect={setPlayer} />;
+  if (!player) {
+    if (location.pathname === "/admin") return <AdminPage />;
+    return <PlayerPicker onSelect={setPlayer} />;
+  }
 
   return (
     <>
