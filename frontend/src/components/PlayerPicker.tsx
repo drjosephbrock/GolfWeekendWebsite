@@ -14,7 +14,7 @@ export default function PlayerPicker({ onSelect }: Props) {
 
   useEffect(() => {
     api.players.list()
-      .then(setPlayers)
+      .then((ps) => setPlayers(ps.filter((p) => p.is_active)))
       .catch(() => setError("Could not load players. Is the server running?"))
       .finally(() => setLoading(false));
   }, []);

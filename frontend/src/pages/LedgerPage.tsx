@@ -4,7 +4,6 @@ import { api, type LedgerEntryOut, type Balance, type LedgerCategory, type Playe
 const CATEGORY_LABELS: Record<LedgerCategory, string> = {
   food: "🍔 Food",
   beer: "🍺 Beer",
-  gatorade: "🥤 Gatorade",
   buy_in: "🏆 Buy-in",
   bet: "💰 Bet",
   settlement: "✅ Settlement",
@@ -14,7 +13,6 @@ const CATEGORY_LABELS: Record<LedgerCategory, string> = {
 const CATEGORY_COLORS: Record<LedgerCategory, string> = {
   food: "#d97706",
   beer: "#b45309",
-  gatorade: "#0891b2",
   buy_in: "#7c3aed",
   bet: "#059669",
   settlement: "#6b7280",
@@ -220,11 +218,20 @@ function AddEntryModal({ currentPlayer, players, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const GROUP_CATEGORIES: LedgerCategory[] = ["food", "beer", "buy_in"];
+
   const [payer, setPayer] = useState(currentPlayer.id);
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState<LedgerCategory>("food");
-  const [splitIds, setSplitIds] = useState<Set<number>>(new Set([currentPlayer.id]));
+  const [splitIds, setSplitIds] = useState<Set<number>>(new Set(players.map((p) => p.id)));
+
+  function handleCategoryChange(cat: LedgerCategory) {
+    setCategory(cat);
+    if (GROUP_CATEGORIES.includes(cat)) {
+      setSplitIds(new Set(players.map((p) => p.id)));
+    }
+  }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -285,7 +292,7 @@ function AddEntryModal({ currentPlayer, players, onClose, onSaved }: {
         </Field>
 
         <Field label="Category">
-          <select style={s.select} value={category} onChange={(e) => setCategory(e.target.value as LedgerCategory)}>
+          <select style={s.select} value={category} onChange={(e) => handleCategoryChange(e.target.value as LedgerCategory)}>
             {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
@@ -293,6 +300,20 @@ function AddEntryModal({ currentPlayer, players, onClose, onSaved }: {
         </Field>
 
         <Field label="Split equally among">
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
+            <button
+              style={{ ...s.splitToggle, ...(splitIds.size === players.length ? s.splitSelected : {}) }}
+              onClick={() => setSplitIds(new Set(players.map((p) => p.id)))}
+            >
+              All ({players.length})
+            </button>
+            <button
+              style={{ ...s.splitToggle, ...(splitIds.size === 0 ? s.splitSelected : {}) }}
+              onClick={() => setSplitIds(new Set())}
+            >
+              None
+            </button>
+          </div>
           <div style={s.splitGrid}>
             {players.map((p) => (
               <button

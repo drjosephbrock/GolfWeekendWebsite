@@ -113,7 +113,7 @@ export interface BestBallResult {
 
 // ── Ledger ────────────────────────────────────────────────────────────────────
 
-export type LedgerCategory = "food" | "beer" | "gatorade" | "buy_in" | "bet" | "settlement" | "other";
+export type LedgerCategory = "food" | "beer" | "buy_in" | "bet" | "settlement" | "other";
 
 export interface SplitOut {
   player_id: number;
@@ -196,6 +196,31 @@ export interface SkinsHole {
   skin_winner_id: number | null;
   pot_value: number;
   carried_over: boolean;
+}
+
+export interface StrokeMatchHole {
+  hole_number: number;
+  par: number;
+  gross_scores: Record<string, number>;
+  net_scores: Record<string, number>;
+}
+
+export interface StrokeMatchSide {
+  team: string;
+  player_ids: number[];
+  player_names: string[];
+  gross_total: number;
+  net_total: number;
+}
+
+export interface StrokeMatchResult {
+  bet_id: number;
+  dollars: number;
+  holes: StrokeMatchHole[];
+  sides: StrokeMatchSide[];
+  winning_team: string | null;
+  margin: number;
+  is_partial: boolean;
 }
 
 export interface SkinsResult {
@@ -283,12 +308,19 @@ async function del(path: string, headers?: Record<string, string>): Promise<void
 export const api = {
   bets: {
     list: (roundId: number) => get<BetOut[]>(`/rounds/${roundId}/bets`),
-    create: (roundId: number, type: BetType, dollarsPerUnit: number, participantIds: number[], pw: string) =>
-      post<BetOut>(`/rounds/${roundId}/bets`, { type, dollars_per_unit: dollarsPerUnit, participant_ids: participantIds }, { "X-Admin-Password": pw }),
+    create: (
+      roundId: number,
+      type: BetType,
+      dollarsPerUnit: number,
+      participants: { player_id: number; team?: string | null }[],
+      pw: string,
+    ) => post<BetOut>(`/rounds/${roundId}/bets`, { type, dollars_per_unit: dollarsPerUnit, participants }, { "X-Admin-Password": pw }),
     delete: (roundId: number, betId: number, pw: string) =>
       del(`/rounds/${roundId}/bets/${betId}`, { "X-Admin-Password": pw }),
     skinsResult: (roundId: number, betId: number) =>
       get<SkinsResult>(`/rounds/${roundId}/bets/${betId}/skins`),
+    strokeMatchResult: (roundId: number, betId: number) =>
+      get<StrokeMatchResult>(`/rounds/${roundId}/bets/${betId}/stroke_match`),
   },
   players: {
     list: () => get<Player[]>("/players"),

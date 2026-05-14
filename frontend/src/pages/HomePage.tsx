@@ -19,7 +19,7 @@ export default function HomePage({ player }: Props) {
 
   useEffect(() => {
     api.rounds.list().then(setRounds).catch(() => {});
-    api.players.list().then(setPlayers).catch(() => {});
+    api.players.list().then((ps) => setPlayers(ps.filter((p) => p.is_active))).catch(() => {});
   }, []);
 
   const myRounds = rounds.filter((r) =>

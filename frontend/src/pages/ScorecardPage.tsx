@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, type RoundOut, type ScorecardResponse, type TiltPlayerResult, type MatchResult, type StrokeResult, type BestBallResult, type BetOut, type SkinsResult } from "../api";
+import { api, type RoundOut, type ScorecardResponse, type TiltPlayerResult, type MatchResult, type StrokeResult, type BestBallResult, type BetOut, type SkinsResult, type StrokeMatchResult } from "../api";
 
 export default function ScorecardPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +10,7 @@ export default function ScorecardPage() {
   const [scorecard, setScorecard] = useState<ScorecardResponse | null>(null);
   const [bets, setBets] = useState<BetOut[]>([]);
   const [skinsResults, setSkinsResults] = useState<Record<number, SkinsResult>>({});
+  const [strokeResults, setStrokeResults] = useState<Record<number, StrokeMatchResult>>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,9 @@ export default function ScorecardPage() {
         const skinsBets = bs.filter((b) => b.type === "skins");
         Promise.all(skinsBets.map((b) => api.bets.skinsResult(roundId, b.id)))
           .then((results) => setSkinsResults(Object.fromEntries(results.map((r) => [r.bet_id, r]))));
+        const strokeBets = bs.filter((b) => b.type === "stroke_match");
+        Promise.all(strokeBets.map((b) => api.bets.strokeMatchResult(roundId, b.id)))
+          .then((results) => setStrokeResults(Object.fromEntries(results.map((r) => [r.bet_id, r]))));
       })
       .catch(() => setError("Could not load scorecard."));
   }, [roundId]);
@@ -52,6 +56,10 @@ export default function ScorecardPage() {
       {bets.filter((b) => b.type === "skins").map((b) => {
         const result = skinsResults[b.id];
         return result ? <SkinsView key={b.id} result={result} nameMap={nameMap} /> : null;
+      })}
+      {bets.filter((b) => b.type === "stroke_match").map((b) => {
+        const result = strokeResults[b.id];
+        return result ? <StrokeMatchView key={b.id} result={result} /> : null;
       })}
     </div>
   );
@@ -272,6 +280,106 @@ function TeamStrokeView({ data, participants }: { data: any; participants: any[]
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Stroke Match ──────────────────────────────────────────────────────────────
+
+function StrokeMatchView({ result }: { result: StrokeMatchResult }) {
+  const [sideA, sideB] = result.sides.length >= 2 ? [result.sides[0], result.sides[1]] : [result.sides[0], null];
+  const aWins = result.winning_team === "A";
+  const bWins = result.winning_team === "B";
+  const allPids = result.sides.flatMap((s) => s.player_ids);
+
+  return (
+    <div className="card" style={{ marginTop: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+        <p className="section-title" style={{ margin: 0 }}>🤝 Stroke Match — ${result.dollars}</p>
+        {result.is_partial && <span className="pill gold" style={{ fontSize: "0.68rem" }}>Live</span>}
+      </div>
+
+      {/* Score summary */}
+      <div style={s.matchNames}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontWeight: aWins ? 800 : 400, fontSize: "0.9rem" }}>{sideA?.player_names.join(" / ")}</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 800, color: aWins ? "var(--green)" : "var(--text)" }}>
+            {sideA?.net_total ?? "—"}
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>net</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          {result.winning_team && !result.is_partial ? (
+            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--green)" }}>
+              {aWins ? sideA?.player_names.join(" / ") : sideB?.player_names.join(" / ")} wins
+            </div>
+          ) : (
+            <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>vs</div>
+          )}
+          {result.margin > 0 && (
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
+              by {result.margin} {result.is_partial ? "(so far)" : ""}
+            </div>
+          )}
+          {!result.winning_team && !result.is_partial && (
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Tied</div>
+          )}
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontWeight: bWins ? 800 : 400, fontSize: "0.9rem" }}>{sideB?.player_names.join(" / ") ?? "—"}</div>
+          <div style={{ fontSize: "1.8rem", fontWeight: 800, color: bWins ? "var(--green)" : "var(--text)" }}>
+            {sideB?.net_total ?? "—"}
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>net</div>
+        </div>
+      </div>
+
+      {/* Hole grid */}
+      {result.holes.length > 0 && (
+        <div style={{ marginTop: "0.75rem", ...s.holeGrid, gridTemplateColumns: `auto auto ${allPids.map(() => "1fr").join(" ")}` }}>
+          <div style={s.gridHead}>H</div>
+          <div style={s.gridHead}>Par</div>
+          {result.sides.flatMap((side) =>
+            side.player_names.map((name) => (
+              <div key={name} style={{ ...s.gridHead, color: side.team === "A" ? "var(--green-dark)" : "#6d28d9" }}>
+                {name.split(" ")[0]}
+              </div>
+            ))
+          )}
+          {result.holes.map((h) => (
+            <Fragment key={h.hole_number}>
+              <div style={s.gridCell}>{h.hole_number}</div>
+              <div style={s.gridCell}>{h.par}</div>
+              {result.sides.flatMap((side) =>
+                side.player_ids.map((pid) => (
+                  <div key={pid} style={s.gridCell}>
+                    <span style={{ fontSize: "0.82rem" }}>{h.gross_scores[String(pid)] ?? "—"}</span>
+                    {h.net_scores[String(pid)] !== h.gross_scores[String(pid)] && (
+                      <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", display: "block" }}>
+                        ({h.net_scores[String(pid)]})
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </Fragment>
+          ))}
+          {/* Totals row */}
+          <div style={{ ...s.gridCell, fontWeight: 700, gridColumn: "1 / 3", textAlign: "right", fontSize: "0.75rem", color: "var(--text-muted)" }}>Total</div>
+          {result.sides.flatMap((side) =>
+            side.player_ids.map((pid) => {
+              const gross = result.holes.reduce((sum, h) => sum + (h.gross_scores[String(pid)] ?? 0), 0);
+              const net = result.holes.reduce((sum, h) => sum + (h.net_scores[String(pid)] ?? 0), 0);
+              return (
+                <div key={pid} style={{ ...s.gridCell, fontWeight: 700 }}>
+                  {gross}
+                  {net !== gross && <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", display: "block" }}>({net})</span>}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

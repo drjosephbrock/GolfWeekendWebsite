@@ -98,7 +98,6 @@ class RoundParticipant(Base):
 class LedgerCategory(str, enum.Enum):
     food = "food"
     beer = "beer"
-    gatorade = "gatorade"
     buy_in = "buy_in"
     bet = "bet"
     settlement = "settlement"
@@ -164,6 +163,7 @@ class BetParticipant(Base):
     id = Column(Integer, primary_key=True, index=True)
     bet_id = Column(Integer, ForeignKey("bets.id"), nullable=False)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    team = Column(String, nullable=True)  # "A" or "B" for stroke_match / nassau
 
     bet = relationship("Bet", back_populates="participants")
     player = relationship("Player")

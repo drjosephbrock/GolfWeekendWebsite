@@ -181,10 +181,15 @@ class BetParticipantOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BetParticipantIn(BaseModel):
+    player_id: int
+    team: Optional[str] = None  # "A" or "B" for stroke_match / nassau
+
+
 class BetCreate(BaseModel):
     type: BetType
     dollars_per_unit: float
-    participant_ids: list[int]
+    participants: list[BetParticipantIn]
 
 
 class BetOut(BaseModel):
@@ -195,6 +200,31 @@ class BetOut(BaseModel):
     participants: list[BetParticipantOut]
 
     model_config = {"from_attributes": True}
+
+
+class StrokeMatchHoleOut(BaseModel):
+    hole_number: int
+    par: int
+    gross_scores: dict[str, int]        # player_id str -> gross
+    net_scores: dict[str, int]          # player_id str -> net
+
+
+class StrokeMatchSideOut(BaseModel):
+    team: str                           # "A" or "B"
+    player_ids: list[int]
+    player_names: list[str]
+    gross_total: int
+    net_total: int
+
+
+class StrokeMatchResultOut(BaseModel):
+    bet_id: int
+    dollars: float
+    holes: list[StrokeMatchHoleOut]
+    sides: list[StrokeMatchSideOut]
+    winning_team: Optional[str]         # "A", "B", or None (tie / incomplete)
+    margin: int                         # net stroke difference
+    is_partial: bool
 
 
 class SkinsHoleOut(BaseModel):

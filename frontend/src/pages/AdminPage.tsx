@@ -641,6 +641,11 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
   const [playerTeams, setPlayerTeams] = useState<Record<number, string>>({});
   const [skinsEnabled, setSkinsEnabled] = useState(false);
   const [skinsDollars, setSkinsDollars] = useState("2");
+  const [strokeEnabled, setStrokeEnabled] = useState(false);
+  const [strokeDollars, setStrokeDollars] = useState("5");
+  const [strokeMode, setStrokeMode] = useState<"1v1" | "2v2">("1v1");
+  const [strokeSideA, setStrokeSideA] = useState<Set<number>>(new Set());
+  const [strokeSideB, setStrokeSideB] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -697,7 +702,20 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
       if (skinsEnabled && selectedPlayers.size > 0) {
         const dollars = parseFloat(skinsDollars);
         if (!isNaN(dollars) && dollars > 0) {
-          await api.bets.create(round.id, "skins", dollars, [...selectedPlayers], pw);
+          await api.bets.create(round.id, "skins", dollars,
+            [...selectedPlayers].map((pid) => ({ player_id: pid })), pw);
+        }
+      }
+      if (strokeEnabled && (strokeSideA.size > 0 || strokeSideB.size > 0)) {
+        const dollars = parseFloat(strokeDollars);
+        if (!isNaN(dollars) && dollars > 0) {
+          const participants = [
+            ...[...strokeSideA].map((pid) => ({ player_id: pid, team: "A" })),
+            ...[...strokeSideB].map((pid) => ({ player_id: pid, team: "B" })),
+          ];
+          if (participants.length > 0) {
+            await api.bets.create(round.id, "stroke_match", dollars, participants, pw);
+          }
         }
       }
       onSaved();
@@ -849,6 +867,78 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
                 onChange={(e) => setSkinsDollars(e.target.value)}
               />
               <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>all selected players in</span>
+            </div>
+          )}
+        </RField>
+
+        <RField label="Stroke Match">
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {[false, true].map((v) => (
+              <button key={String(v)} className={`btn ${strokeEnabled === v ? "btn-primary" : "btn-ghost"}`}
+                style={{ flex: 1 }} onClick={() => { setStrokeEnabled(v); setStrokeSideA(new Set()); setStrokeSideB(new Set()); }}>
+                {v ? "Yes" : "No"}
+              </button>
+            ))}
+          </div>
+          {strokeEnabled && (
+            <div style={{ marginTop: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                {(["1v1", "2v2"] as const).map((m) => (
+                  <button key={m} className={`btn ${strokeMode === m ? "btn-primary" : "btn-ghost"}`}
+                    style={{ flex: 1 }} onClick={() => { setStrokeMode(m); setStrokeSideA(new Set()); setStrokeSideB(new Set()); }}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", flexShrink: 0 }}>Wager $</span>
+                <input style={{ ...s.input, width: "70px" }} type="number" min="1" step="1"
+                  value={strokeDollars} onChange={(e) => setStrokeDollars(e.target.value)} />
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>flat</span>
+              </div>
+              {/* Side pickers */}
+              {(["A", "B"] as const).map((side) => {
+                const sideSet = side === "A" ? strokeSideA : strokeSideB;
+                const setSide = side === "A" ? setStrokeSideA : setStrokeSideB;
+                const otherSet = side === "A" ? strokeSideB : strokeSideA;
+                const maxPer = strokeMode === "1v1" ? 1 : 2;
+                const available = [...selectedPlayers].filter((pid) => !otherSet.has(pid));
+                return (
+                  <div key={side} style={{ marginBottom: "0.4rem" }}>
+                    <div style={{ fontSize: "0.72rem", fontWeight: 700, color: side === "A" ? "var(--green-dark)" : "#6d28d9", marginBottom: "0.2rem" }}>
+                      Side {side} {sideSet.size > 0 ? `(${sideSet.size})` : ""}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                      {available.map((pid) => {
+                        const p = players.find((pl) => pl.id === pid);
+                        const chosen = sideSet.has(pid);
+                        const full = !chosen && sideSet.size >= maxPer;
+                        return (
+                          <button key={pid}
+                            style={{
+                              padding: "0.25rem 0.6rem", borderRadius: "0.4rem", fontSize: "0.8rem", fontWeight: 600,
+                              border: `1.5px solid ${chosen ? (side === "A" ? "var(--green)" : "#7c3aed") : "var(--border)"}`,
+                              background: chosen ? (side === "A" ? "#d1fae5" : "#ede9fe") : "var(--bg)",
+                              color: chosen ? (side === "A" ? "var(--green-dark)" : "#6d28d9") : full ? "var(--text-muted)" : "var(--text)",
+                              opacity: full ? 0.5 : 1,
+                            }}
+                            disabled={full}
+                            onClick={() => {
+                              setSide((prev) => {
+                                const next = new Set(prev);
+                                next.has(pid) ? next.delete(pid) : next.add(pid);
+                                return next;
+                              });
+                            }}
+                          >
+                            {p?.name ?? `#${pid}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </RField>
