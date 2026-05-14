@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { api, type Player, type CourseOut, type LedgerEntryOut, type RoundOut, type RoundCreate } from "../api";
+import { api, type Player, type CourseOut, type LedgerEntryOut, type RoundOut, type RoundCreate, type BetOut } from "../api";
 
 const SESSION_KEY = "golf_admin_pw";
 
@@ -518,12 +518,19 @@ function RoundsTab({ pw }: { pw: string }) {
   const [rounds, setRounds] = useState<RoundOut[]>([]);
   const [courses, setCourses] = useState<CourseOut[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [roundBets, setRoundBets] = useState<Record<number, BetOut[]>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     Promise.all([api.rounds.list(), api.courses.list(), api.players.list()])
-      .then(([r, c, p]) => { setRounds(r); setCourses(c); setPlayers(p); })
+      .then(([r, c, p]) => {
+        setRounds(r);
+        setCourses(c);
+        setPlayers(p);
+        Promise.all(r.map((round) => api.bets.list(round.id).then((bets) => ({ id: round.id, bets }))))
+          .then((results) => setRoundBets(Object.fromEntries(results.map((x) => [x.id, x.bets]))));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -572,6 +579,15 @@ function RoundsTab({ pw }: { pw: string }) {
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                   {fmt} · {courseMap[r.course_id] ?? `Course ${r.course_id}`} · {r.holes_count}H · {date} · {r.participants.length} players
+                  {(roundBets[r.id] ?? []).length > 0 && (
+                    <span style={{ marginLeft: "0.4rem" }}>
+                      {(roundBets[r.id] ?? []).map((b) => (
+                        <span key={b.id} className="pill gold" style={{ fontSize: "0.65rem", marginLeft: "0.25rem" }}>
+                          {b.type === "skins" ? `💰 Skins $${b.dollars_per_unit}` : b.type}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </div>
                 <div style={{ marginTop: "0.2rem" }}>
                   <span className={`pill ${r.is_complete ? "green" : "gold"}`} style={{ fontSize: "0.68rem" }}>
@@ -623,6 +639,8 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
   const [teeTimeGroup, setTeeTimeGroup] = useState<number | undefined>(undefined);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<number>>(new Set());
   const [playerTeams, setPlayerTeams] = useState<Record<number, string>>({});
+  const [skinsEnabled, setSkinsEnabled] = useState(false);
+  const [skinsDollars, setSkinsDollars] = useState("2");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -675,7 +693,13 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
     setSaving(true);
     setError(null);
     try {
-      await api.rounds.create(payload, pw);
+      const round = await api.rounds.create(payload, pw);
+      if (skinsEnabled && selectedPlayers.size > 0) {
+        const dollars = parseFloat(skinsDollars);
+        if (!isNaN(dollars) && dollars > 0) {
+          await api.bets.create(round.id, "skins", dollars, [...selectedPlayers], pw);
+        }
+      }
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create round.");
@@ -802,6 +826,31 @@ function CreateRoundModal({ courses, players, pw, onClose, onSaved }: {
               );
             })}
           </div>
+        </RField>
+
+        <RField label="Skins game">
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            {[false, true].map((v) => (
+              <button key={String(v)} className={`btn ${skinsEnabled === v ? "btn-primary" : "btn-ghost"}`}
+                style={{ flex: 1 }} onClick={() => setSkinsEnabled(v)}>
+                {v ? "Yes" : "No"}
+              </button>
+            ))}
+          </div>
+          {skinsEnabled && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <span style={{ fontSize: "0.88rem", color: "var(--text-muted)", flexShrink: 0 }}>$ per skin</span>
+              <input
+                style={{ ...s.input, width: "80px" }}
+                type="number"
+                min="1"
+                step="1"
+                value={skinsDollars}
+                onChange={(e) => setSkinsDollars(e.target.value)}
+              />
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>all selected players in</span>
+            </div>
+          )}
         </RField>
 
         {error && <p style={{ color: "var(--danger)", fontSize: "0.85rem", marginTop: "0.25rem" }}>{error}</p>}

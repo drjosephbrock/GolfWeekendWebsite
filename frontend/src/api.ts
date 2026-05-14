@@ -172,6 +172,41 @@ export interface Scoreboard {
   sessions: RyderSession[];
 }
 
+// ── Bets ──────────────────────────────────────────────────────────────────────
+
+export type BetType = "skins" | "stroke_match" | "nassau" | "dots";
+
+export interface BetParticipantOut {
+  player_id: number;
+  player_name: string;
+}
+
+export interface BetOut {
+  id: number;
+  round_id: number;
+  type: BetType;
+  dollars_per_unit: number;
+  participants: BetParticipantOut[];
+}
+
+export interface SkinsHole {
+  hole_number: number;
+  par: number;
+  gross_scores: Record<string, number>;
+  skin_winner_id: number | null;
+  pot_value: number;
+  carried_over: boolean;
+}
+
+export interface SkinsResult {
+  bet_id: number;
+  dollars_per_skin: number;
+  holes: SkinsHole[];
+  winnings: Record<string, number>;
+  is_partial: boolean;
+  participant_ids: number[];
+}
+
 export interface LedgerEntryCreate {
   payer_id: number;
   amount: number;
@@ -246,6 +281,15 @@ async function del(path: string, headers?: Record<string, string>): Promise<void
 }
 
 export const api = {
+  bets: {
+    list: (roundId: number) => get<BetOut[]>(`/rounds/${roundId}/bets`),
+    create: (roundId: number, type: BetType, dollarsPerUnit: number, participantIds: number[], pw: string) =>
+      post<BetOut>(`/rounds/${roundId}/bets`, { type, dollars_per_unit: dollarsPerUnit, participant_ids: participantIds }, { "X-Admin-Password": pw }),
+    delete: (roundId: number, betId: number, pw: string) =>
+      del(`/rounds/${roundId}/bets/${betId}`, { "X-Admin-Password": pw }),
+    skinsResult: (roundId: number, betId: number) =>
+      get<SkinsResult>(`/rounds/${roundId}/bets/${betId}/skins`),
+  },
   players: {
     list: () => get<Player[]>("/players"),
     get: (id: number) => get<Player>(`/players/${id}`),

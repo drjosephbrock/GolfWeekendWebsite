@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from ..database import get_db
-from ..models import Round, RoundParticipant, HoleScore, LedgerEntry, LedgerSplit, Player
+from ..models import Round, RoundParticipant, HoleScore, LedgerEntry, LedgerSplit, Player, Bet, BetParticipant
 from ..config import settings
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -30,10 +30,12 @@ def wipe_seasonal_data(
     Resets all player team assignments to null.
     """
     db.query(HoleScore).delete()
+    db.query(BetParticipant).delete()
+    db.query(Bet).delete()
     db.query(RoundParticipant).delete()
     db.query(LedgerSplit).delete()
     db.query(LedgerEntry).delete()
     db.query(Round).delete()
     db.query(Player).update({Player.team: None})
     db.commit()
-    return {"ok": True, "wiped": ["rounds", "scores", "ledger", "team_assignments"]}
+    return {"ok": True, "wiped": ["rounds", "scores", "bets", "ledger", "team_assignments"]}

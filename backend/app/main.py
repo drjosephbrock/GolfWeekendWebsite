@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .database import engine
 from .models import Base
-from .routers import players, courses, rounds, ledger, admin, rydercup
+from .routers import players, courses, rounds, ledger, admin, rydercup, bets
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +17,7 @@ app.include_router(rounds.router)
 app.include_router(ledger.router)
 app.include_router(admin.router)
 app.include_router(rydercup.router)
+app.include_router(bets.router)
 
 # Serve React build in production
 static_dir = Path(__file__).parent.parent.parent / "frontend" / "dist"

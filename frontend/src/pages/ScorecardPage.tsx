@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, type RoundOut, type ScorecardResponse, type TiltPlayerResult, type MatchResult, type StrokeResult, type BestBallResult } from "../api";
+import { api, type RoundOut, type ScorecardResponse, type TiltPlayerResult, type MatchResult, type StrokeResult, type BestBallResult, type BetOut, type SkinsResult } from "../api";
 
 export default function ScorecardPage() {
   const { id } = useParams<{ id: string }>();
@@ -8,11 +8,20 @@ export default function ScorecardPage() {
 
   const [round, setRound] = useState<RoundOut | null>(null);
   const [scorecard, setScorecard] = useState<ScorecardResponse | null>(null);
+  const [bets, setBets] = useState<BetOut[]>([]);
+  const [skinsResults, setSkinsResults] = useState<Record<number, SkinsResult>>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.rounds.get(roundId), api.rounds.scorecard(roundId)])
-      .then(([r, sc]) => { setRound(r); setScorecard(sc); })
+    Promise.all([api.rounds.get(roundId), api.rounds.scorecard(roundId), api.bets.list(roundId)])
+      .then(([r, sc, bs]) => {
+        setRound(r);
+        setScorecard(sc);
+        setBets(bs);
+        const skinsBets = bs.filter((b) => b.type === "skins");
+        Promise.all(skinsBets.map((b) => api.bets.skinsResult(roundId, b.id)))
+          .then((results) => setSkinsResults(Object.fromEntries(results.map((r) => [r.bet_id, r]))));
+      })
       .catch(() => setError("Could not load scorecard."));
   }, [roundId]);
 
@@ -39,6 +48,11 @@ export default function ScorecardPage() {
       {(scorecard.format === "alternate_shot" || scorecard.format === "scramble") && (
         <TeamStrokeView data={scorecard as any} participants={round.participants} />
       )}
+
+      {bets.filter((b) => b.type === "skins").map((b) => {
+        const result = skinsResults[b.id];
+        return result ? <SkinsView key={b.id} result={result} nameMap={nameMap} /> : null;
+      })}
     </div>
   );
 }
@@ -258,6 +272,84 @@ function TeamStrokeView({ data, participants }: { data: any; participants: any[]
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Skins ─────────────────────────────────────────────────────────────────────
+
+function SkinsView({ result, nameMap }: { result: SkinsResult; nameMap: Record<number, string> }) {
+  const playerIds = result.participant_ids;
+  const totalHoles = result.holes.length;
+  const skinsWon = result.holes.filter((h) => !h.carried_over).length;
+  const carried = result.holes.filter((h) => h.carried_over).length;
+
+  const winnersByDollars = [...playerIds]
+    .map((pid) => ({ pid, name: nameMap[pid] ?? `Player ${pid}`, dollars: result.winnings[String(pid)] ?? 0 }))
+    .sort((a, b) => b.dollars - a.dollars);
+
+  return (
+    <div className="card" style={{ marginTop: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+        <p className="section-title" style={{ margin: 0 }}>💰 Skins — ${result.dollars_per_skin}/skin</p>
+        {result.is_partial && <span className="pill gold" style={{ fontSize: "0.68rem" }}>Live</span>}
+      </div>
+
+      {/* Winnings summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", marginBottom: "0.75rem" }}>
+        {winnersByDollars.map(({ pid, name, dollars }) => (
+          <div key={pid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: dollars > 0 ? 700 : 400, fontSize: "0.88rem" }}>{name}</span>
+            <span style={{ fontWeight: 700, color: dollars > 0 ? "var(--green)" : "var(--text-muted)", fontSize: "0.88rem" }}>
+              {dollars > 0 ? `+$${dollars}` : "—"}
+            </span>
+          </div>
+        ))}
+        {totalHoles > 0 && (
+          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.25rem", borderTop: "1px solid var(--border)", paddingTop: "0.25rem" }}>
+            {skinsWon} skin{skinsWon !== 1 ? "s" : ""} won · {carried} carried · {totalHoles} holes scored
+          </div>
+        )}
+      </div>
+
+      {/* Hole-by-hole */}
+      {result.holes.length > 0 && (
+        <div style={{ ...s.holeGrid, gridTemplateColumns: `auto auto ${playerIds.map(() => "1fr").join(" ")} auto` }}>
+          <div style={s.gridHead}>H</div>
+          <div style={s.gridHead}>Par</div>
+          {playerIds.map((pid) => <div key={pid} style={s.gridHead}>{(nameMap[pid] ?? "?").split(" ")[0]}</div>)}
+          <div style={s.gridHead}>Pot</div>
+          {result.holes.map((h) => (
+            <>
+              <div key={`n-${h.hole_number}`} style={s.gridCell}>{h.hole_number}</div>
+              <div style={s.gridCell}>{h.par}</div>
+              {playerIds.map((pid) => {
+                const gross = h.gross_scores[String(pid)];
+                const isWinner = h.skin_winner_id === pid;
+                return (
+                  <div key={pid} style={{
+                    ...s.gridCell,
+                    fontWeight: isWinner ? 800 : 400,
+                    background: isWinner ? "#d1fae5" : h.carried_over ? "#fef9c3" : "var(--surface)",
+                    color: isWinner ? "var(--green-dark)" : "var(--text)",
+                  }}>
+                    {gross ?? "—"}
+                  </div>
+                );
+              })}
+              <div style={{ ...s.gridCell, fontSize: "0.72rem", fontWeight: 600, color: h.carried_over ? "#92400e" : "var(--text-muted)" }}>
+                ${h.pot_value}{h.carried_over ? "↑" : ""}
+              </div>
+            </>
+          ))}
+        </div>
+      )}
+
+      {result.holes.length === 0 && (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", textAlign: "center", padding: "0.5rem 0" }}>
+          No scores entered yet.
+        </p>
+      )}
     </div>
   );
 }

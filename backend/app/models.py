@@ -15,6 +15,13 @@ class GameFormat(str, enum.Enum):
     tilt = "tilt"
 
 
+class BetType(str, enum.Enum):
+    skins = "skins"
+    stroke_match = "stroke_match"
+    nassau = "nassau"
+    dots = "dots"
+
+
 class Player(Base):
     __tablename__ = "players"
 
@@ -66,6 +73,7 @@ class Round(Base):
     course = relationship("Course")
     participants = relationship("RoundParticipant", back_populates="round")
     hole_scores = relationship("HoleScore", back_populates="round")
+    bets = relationship("Bet", back_populates="round", cascade="all, delete-orphan")
 
 
 class RoundParticipant(Base):
@@ -131,6 +139,33 @@ class LedgerSplit(Base):
     amount = Column(Float, nullable=False)         # this player's share of the expense
 
     entry = relationship("LedgerEntry", back_populates="splits")
+    player = relationship("Player")
+
+    @property
+    def player_name(self) -> str:
+        return self.player.name if self.player else ""
+
+
+class Bet(Base):
+    __tablename__ = "bets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    round_id = Column(Integer, ForeignKey("rounds.id"), nullable=False)
+    type = Column(SAEnum(BetType), nullable=False)
+    dollars_per_unit = Column(Float, nullable=False)
+
+    round = relationship("Round", back_populates="bets")
+    participants = relationship("BetParticipant", back_populates="bet", cascade="all, delete-orphan")
+
+
+class BetParticipant(Base):
+    __tablename__ = "bet_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bet_id = Column(Integer, ForeignKey("bets.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+
+    bet = relationship("Bet", back_populates="participants")
     player = relationship("Player")
 
     @property

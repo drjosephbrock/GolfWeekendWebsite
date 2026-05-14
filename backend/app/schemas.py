@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from .models import GameFormat, LedgerCategory
+from .models import GameFormat, LedgerCategory, BetType
 
 
 # ── Players ───────────────────────────────────────────────────────────────────
@@ -170,6 +170,49 @@ class LedgerEntryOut(BaseModel):
     splits: list[SplitOut] = []
 
     model_config = {"from_attributes": True}
+
+
+# ── Bets ──────────────────────────────────────────────────────────────────────
+
+class BetParticipantOut(BaseModel):
+    player_id: int
+    player_name: str
+
+    model_config = {"from_attributes": True}
+
+
+class BetCreate(BaseModel):
+    type: BetType
+    dollars_per_unit: float
+    participant_ids: list[int]
+
+
+class BetOut(BaseModel):
+    id: int
+    round_id: int
+    type: BetType
+    dollars_per_unit: float
+    participants: list[BetParticipantOut]
+
+    model_config = {"from_attributes": True}
+
+
+class SkinsHoleOut(BaseModel):
+    hole_number: int
+    par: int
+    gross_scores: dict[str, int]        # player_id str -> gross
+    skin_winner_id: Optional[int]
+    pot_value: float
+    carried_over: bool
+
+
+class SkinsResultOut(BaseModel):
+    bet_id: int
+    dollars_per_skin: float
+    holes: list[SkinsHoleOut]
+    winnings: dict[str, float]          # player_id str -> dollars won
+    is_partial: bool
+    participant_ids: list[int]
 
 
 class Balance(BaseModel):
