@@ -7,6 +7,7 @@ from .database import engine
 from .models import Base
 from .routers import players, courses, rounds, ledger, admin, rydercup, bets
 
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Golf Weekend")
