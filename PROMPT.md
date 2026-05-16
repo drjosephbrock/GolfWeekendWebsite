@@ -176,3 +176,6 @@ Core app is built and working end-to-end. Next priorities: static content pages,
 ## Open Questions (still to resolve)
 1. Nassau: do you use presses?
 2. Player profile: any fields beyond name and handicap?
+
+##  Issues
+ Can't add plauers after cleara
